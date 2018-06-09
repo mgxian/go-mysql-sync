@@ -258,12 +258,23 @@ func (r *River) getBitValue(value interface{}) (v string, err error) {
 	return
 }
 
+func (r *River) getTextValue(value interface{}) (v string, err error) {
+	switch value := value.(type) {
+	case []uint8:
+		v = "'" + string(value) + "'"
+	default:
+		v = "'" + value.(string) + "'"
+	}
+	return
+}
+
 func (r *River) getColumnValue(column schema.TableColumn, value interface{}) (v string, err error) {
 	err = nil
 	if value == nil {
 		v = "NULL"
 		return
 	}
+	// log.Infof("field ----> %s %s %d %v", column.Name, column.RawType, column.Type, value)
 	switch column.Type {
 	case schema.TYPE_NUMBER, schema.TYPE_FLOAT:
 		return r.getNumberValue(value)
@@ -272,7 +283,13 @@ func (r *River) getColumnValue(column schema.TableColumn, value interface{}) (v 
 	case schema.TYPE_BIT:
 		return r.getBitValue(value)
 	default:
-		v = "'" + value.(string) + "'"
+		// the text field is MYSQL_TYPE_BLOB in the MySQL binlog, so go-mysql will use the bytes for it
+		switch column.RawType {
+		case "text":
+			return r.getTextValue(value)
+		default:
+			v = "'" + value.(string) + "'"
+		}
 	}
 	return
 }
