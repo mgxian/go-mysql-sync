@@ -154,7 +154,7 @@ func (r *River) syncLoop() {
 
 		if needFlush {
 			// TODO: retry some times?
-			if err := r.doBulk(sqls); err != nil {
+			if err := r.do(sqls); err != nil {
 				log.Errorf("do SQL bulk err %v, close sync", err)
 				r.cancel()
 				return
@@ -294,39 +294,6 @@ func (r *River) getColumnValue(column schema.TableColumn, value interface{}) (v 
 	return
 }
 
-func (r *River) makeDeleteSQL(rule *Rule, values []interface{}) string {
-	// get where condition
-	where, _ := r.getWhereCondition(rule.TableInfo, values)
-
-	sql := fmt.Sprintf("DELETE FROM `%s`.`%s` WHERE %s;",
-		rule.TableInfo.Schema, rule.TableInfo.Name, where)
-	return sql
-}
-
-func (r *River) makeInsertSQL(rule *Rule, values []interface{}) string {
-	sqlField := make([]string, 0)
-	sqlValues := make([]string, 0)
-	for idx, column := range rule.TableInfo.Columns {
-		name := column.Name
-		sqlField = append(sqlField, "`"+name+"`")
-		value := values[idx]
-
-		v, err := r.getColumnValue(column, value)
-		if err != nil {
-			log.Error(err)
-		} else {
-			sqlValues = append(sqlValues, v)
-		}
-
-	}
-
-	sql := fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) VALUE(%s);",
-		rule.TableInfo.Schema, rule.TableInfo.Name,
-		strings.Join(sqlField, ", "),
-		strings.Join(sqlValues, ", "))
-	return sql
-}
-
 func (r *River) getWhereCondition(table *schema.Table, values []interface{}) (string, error) {
 	sqlWhereField := make([]string, 0)
 	sqlWhereValues := make([]string, 0)
@@ -366,6 +333,47 @@ func (r *River) getWhereCondition(table *schema.Table, values []interface{}) (st
 	return strings.Join(whereCondition, " AND "), nil
 }
 
+func (r *River) makeDeleteSQL(rule *Rule, values []interface{}) string {
+	// get where condition
+	where, _ := r.getWhereCondition(rule.TableInfo, values)
+
+	sql := fmt.Sprintf("DELETE FROM `%s`.`%s` WHERE %s;",
+		r.getDestinationSchema(rule.TableInfo.Schema), rule.TableInfo.Name, where)
+	return sql
+}
+
+func (r *River) makeInsertSQL(rule *Rule, values []interface{}) string {
+	sqlField := make([]string, 0)
+	sqlValues := make([]string, 0)
+	for idx, column := range rule.TableInfo.Columns {
+		name := column.Name
+		sqlField = append(sqlField, "`"+name+"`")
+		value := values[idx]
+
+		v, err := r.getColumnValue(column, value)
+		if err != nil {
+			log.Error(err)
+		} else {
+			sqlValues = append(sqlValues, v)
+		}
+
+	}
+
+	sql := fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) VALUE(%s);",
+		r.getDestinationSchema(rule.TableInfo.Schema), rule.TableInfo.Name,
+		strings.Join(sqlField, ", "),
+		strings.Join(sqlValues, ", "))
+	return sql
+}
+
+func (r *River) getDestinationSchema(schema string) string {
+	if ds, ok := r.schemaMap[schema]; ok {
+		return ds
+	}
+
+	return schema
+}
+
 func (r *River) makeUpdateSQL(rule *Rule, beforValues []interface{}, afterValues []interface{}) string {
 	sqlField := make([]string, 0)
 	sqlValues := make([]string, 0)
@@ -399,7 +407,7 @@ func (r *River) makeUpdateSQL(rule *Rule, beforValues []interface{}, afterValues
 	}
 
 	sql := fmt.Sprintf("UPDATE `%s`.`%s` SET %s WHERE %s;",
-		rule.TableInfo.Schema, rule.TableInfo.Name,
+		r.getDestinationSchema(rule.TableInfo.Schema), rule.TableInfo.Name,
 		strings.Join(setPart, ", "), where)
 	return sql
 }
@@ -432,13 +440,17 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]string, e
 	return sqls, nil
 }
 
-func (r *River) doBulk(sqls []string) error {
+func (r *River) do(sqls []string) error {
 	if len(sqls) == 0 {
 		return nil
 	}
 
 	for _, sql := range sqls {
-		log.Print(sql)
+		if err := r.db.Exec(sql); err != nil {
+			log.Errorf("exec error ----> %s %s", sql, err)
+		} else {
+			log.Infof("exec success ----> %s", sql)
+		}
 	}
 	return nil
 }

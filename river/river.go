@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/mgxian/go-mysql-sync/mysql"
 	"github.com/siddontang/go-mysql/canal"
 	"gopkg.in/birkirb/loggers.v1/log"
 )
@@ -29,13 +30,15 @@ type River struct {
 
 	wg sync.WaitGroup
 
-	// es *elastic.Client
+	db *mysql.Client
 
 	st *stat
 
 	master *masterInfo
 
 	syncCh chan interface{}
+
+	schemaMap map[string]string
 }
 
 func NewRiver(c *Config) (*River, error) {
@@ -45,6 +48,11 @@ func NewRiver(c *Config) (*River, error) {
 	r.rules = make(map[string]*Rule)
 	r.syncCh = make(chan interface{}, 4096)
 	r.ctx, r.cancel = context.WithCancel(context.Background())
+
+	r.schemaMap = make(map[string]string)
+	for _, source := range r.c.Sources {
+		r.schemaMap[source.Schema] = source.DestSchema
+	}
 
 	var err error
 	if r.master, err = loadMasterInfo(c.DataDir); err != nil {
@@ -68,12 +76,14 @@ func NewRiver(c *Config) (*River, error) {
 		return nil, errors.Trace(err)
 	}
 
-	// cfg := new(elastic.ClientConfig)
-	// cfg.Addr = r.c.ESAddr
-	// cfg.User = r.c.ESUser
-	// cfg.Password = r.c.ESPassword
-	// cfg.Https = r.c.ESHttps
-	// r.es = elastic.NewClient(cfg)
+	cfg := new(mysql.ClientConfig)
+	cfg.Addr = r.c.DestMyAddr
+	cfg.User = r.c.DestMyUser
+	cfg.Password = r.c.DestMyPassword
+	r.db, err = mysql.NewClient(cfg)
+	if err != nil {
+		log.Fatalf("destination db connect error %s", err)
+	}
 
 	r.st = &stat{r: r}
 	go r.st.Run(r.c.StatAddr)
@@ -83,10 +93,10 @@ func NewRiver(c *Config) (*River, error) {
 
 func (r *River) newCanal() error {
 	cfg := canal.NewDefaultConfig()
-	cfg.Addr = r.c.MyAddr
-	cfg.User = r.c.MyUser
-	cfg.Password = r.c.MyPassword
-	cfg.Charset = r.c.MyCharset
+	cfg.Addr = r.c.SrcMyAddr
+	cfg.User = r.c.SrcMyUser
+	cfg.Password = r.c.SrcMyPassword
+	cfg.Charset = r.c.SrcMyCharset
 	cfg.Flavor = r.c.Flavor
 
 	cfg.ServerID = r.c.ServerID

@@ -1,17 +1,14 @@
 # MySQL address, user and password
 # user must have replication privilege in MySQL.
-my_addr = "127.0.0.1:3306"
-my_user = "root"
-my_pass = ""
-my_charset = "utf8"
+src_my_addr = "127.0.0.1:3306"
+src_my_user = "root"
+src_my_pass = ""
+src_my_charset = "utf8"
 
-# Set true when elasticsearch use https
-#es_https = false
-# Elasticsearch address
-es_addr = "127.0.0.1:9200"
-# Elasticsearch user and password, maybe set by shield, nginx, or x-pack
-es_user = ""
-es_pass = ""
+dest_my_addr = "127.0.0.1:3306"
+dest_my_user = "root"
+dest_my_pass = ""
+dest_my_charset = "utf8"
 
 # Path to store data, like master.info, if not set or empty,
 # we must use this to support breakpoint resume syncing. 
@@ -47,6 +44,7 @@ skip_no_pk_table = false
 # MySQL data source
 [[source]]
 schema = "test"
+dest_schema = "test2"
 
 # Only below tables will be synced into Elasticsearch.
 # "t_[0-9]{4}" is a wildcard table format, you can use it if you have many sub tables, like table_0000 - table_1023

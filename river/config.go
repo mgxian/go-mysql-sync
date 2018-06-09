@@ -9,20 +9,21 @@ import (
 )
 
 type SourceConfig struct {
-	Schema string   `toml:"schema"`
-	Tables []string `toml:"tables"`
+	Schema     string   `toml:"schema"`
+	DestSchema string   `toml:"dest_schema"`
+	Tables     []string `toml:"tables"`
 }
 
 type Config struct {
-	MyAddr     string `toml:"my_addr"`
-	MyUser     string `toml:"my_user"`
-	MyPassword string `toml:"my_pass"`
-	MyCharset  string `toml:"my_charset"`
+	SrcMyAddr     string `toml:"src_my_addr"`
+	SrcMyUser     string `toml:"src_my_user"`
+	SrcMyPassword string `toml:"src_my_pass"`
+	SrcMyCharset  string `toml:"src_my_charset"`
 
-	ESHttps    bool   `toml:"es_https"`
-	ESAddr     string `toml:"es_addr"`
-	ESUser     string `toml:"es_user"`
-	ESPassword string `toml:"es_pass"`
+	DestMyAddr     string `toml:"dest_my_addr"`
+	DestMyUser     string `toml:"dest_my_user"`
+	DestMyPassword string `toml:"dest_my_pass"`
+	DestMyCharset  string `toml:"dest_my_charset"`
 
 	StatAddr string `toml:"stat_addr"`
 

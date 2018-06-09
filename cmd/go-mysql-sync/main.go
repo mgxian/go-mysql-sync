@@ -13,10 +13,12 @@ import (
 )
 
 var configFile = flag.String("config", "./etc/river.toml", "go-mysql-sync config file")
-var my_addr = flag.String("my_addr", "", "MySQL addr")
-var my_user = flag.String("my_user", "", "MySQL user")
-var my_pass = flag.String("my_pass", "", "MySQL password")
-var es_addr = flag.String("es_addr", "", "Elasticsearch addr")
+var src_my_addr = flag.String("src_my_addr", "", "source MySQL addr")
+var src_my_user = flag.String("src_my_user", "", "source MySQL user")
+var src_my_pass = flag.String("src_my_pass", "", "source MySQL password")
+var dest_my_addr = flag.String("dest_my_addr", "", "destination MySQL addr")
+var dest_my_user = flag.String("dest_my_user", "", "destination MySQL user")
+var dest_my_pass = flag.String("dest_my_pass", "", "destination MySQL password")
 var data_dir = flag.String("data_dir", "", "path for go-mysql-sync to save data")
 var server_id = flag.Int("server_id", 0, "MySQL server id, as a pseudo slave")
 var flavor = flag.String("flavor", "", "flavor: mysql or mariadb")
@@ -45,24 +47,32 @@ func main() {
 		return
 	}
 
-	if len(*my_addr) > 0 {
-		cfg.MyAddr = *my_addr
+	if len(*src_my_addr) > 0 {
+		cfg.SrcMyAddr = *src_my_addr
 	}
 
-	if len(*my_user) > 0 {
-		cfg.MyUser = *my_user
+	if len(*src_my_user) > 0 {
+		cfg.SrcMyUser = *src_my_user
 	}
 
-	if len(*my_pass) > 0 {
-		cfg.MyPassword = *my_pass
+	if len(*src_my_pass) > 0 {
+		cfg.SrcMyPassword = *src_my_pass
+	}
+
+	if len(*dest_my_addr) > 0 {
+		cfg.DestMyAddr = *dest_my_addr
+	}
+
+	if len(*dest_my_user) > 0 {
+		cfg.DestMyUser = *dest_my_user
+	}
+
+	if len(*dest_my_pass) > 0 {
+		cfg.DestMyPassword = *dest_my_pass
 	}
 
 	if *server_id > 0 {
 		cfg.ServerID = uint32(*server_id)
-	}
-
-	if len(*es_addr) > 0 {
-		cfg.ESAddr = *es_addr
 	}
 
 	if len(*data_dir) > 0 {
