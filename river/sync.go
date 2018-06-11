@@ -241,6 +241,25 @@ func (r *River) getSetValue(column schema.TableColumn, value interface{}) (v str
 	return
 }
 
+func (r *River) getEnumValue(column schema.TableColumn, value interface{}) (v string, err error) {
+	err = nil
+	switch value := value.(type) {
+	case int64:
+		// for binlog, ENUM may be int64, but for dump, enum is string
+		eNum := value - 1
+		if eNum < 0 || eNum >= int64(len(column.EnumValues)) {
+			// we insert invalid enum value before, so return empty
+			log.Warnf("invalid binlog enum index %d, for enum %v", eNum, column.EnumValues)
+			v = ""
+		}
+
+		v = "'" + column.EnumValues[eNum] + "'"
+	default:
+		v = "'" + value.(string) + "'"
+	}
+	return
+}
+
 func (r *River) getBitValue(value interface{}) (v string, err error) {
 	err = nil
 	switch value := value.(type) {
@@ -274,7 +293,7 @@ func (r *River) getColumnValue(column schema.TableColumn, value interface{}) (v 
 		v = "NULL"
 		return
 	}
-	// log.Infof("field ----> %s %s %d %v", column.Name, column.RawType, column.Type, value)
+	// log.Infof("field ---->  %s %s %d %v", column.Name, column.RawType, column.Type, value)
 	switch column.Type {
 	case schema.TYPE_NUMBER, schema.TYPE_FLOAT:
 		return r.getNumberValue(value)
@@ -282,6 +301,8 @@ func (r *River) getColumnValue(column schema.TableColumn, value interface{}) (v 
 		return r.getSetValue(column, value)
 	case schema.TYPE_BIT:
 		return r.getBitValue(value)
+	case schema.TYPE_ENUM:
+		return r.getEnumValue(column, value)
 	default:
 		// the text field is MYSQL_TYPE_BLOB in the MySQL binlog, so go-mysql will use the bytes for it
 		switch column.RawType {
@@ -345,6 +366,7 @@ func (r *River) makeDeleteSQL(rule *Rule, values []interface{}) string {
 func (r *River) makeInsertSQL(rule *Rule, values []interface{}) string {
 	sqlField := make([]string, 0)
 	sqlValues := make([]string, 0)
+	// log.Infof("table ----> %s", rule.Table)
 	for idx, column := range rule.TableInfo.Columns {
 		name := column.Name
 		sqlField = append(sqlField, "`"+name+"`")
@@ -377,6 +399,8 @@ func (r *River) getDestinationSchema(schema string) string {
 func (r *River) makeUpdateSQL(rule *Rule, beforValues []interface{}, afterValues []interface{}) string {
 	sqlField := make([]string, 0)
 	sqlValues := make([]string, 0)
+
+	// log.Infof("table ----> %s", rule.Table)
 
 	// get set field
 	for idx, column := range rule.TableInfo.Columns {
