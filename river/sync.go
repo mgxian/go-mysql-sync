@@ -287,6 +287,16 @@ func (r *River) getTextValue(value interface{}) (v string, err error) {
 	return
 }
 
+func escape(source string) string {
+	needEscapeString := []string{"\\", "'", "\""}
+	dest := source
+	for _, escapeString := range needEscapeString {
+		dest = strings.Replace(dest, escapeString, "\\"+escapeString, -1)
+		// log.Info(dest)
+	}
+	return dest
+}
+
 func (r *River) getColumnValue(column schema.TableColumn, value interface{}) (v string, err error) {
 	err = nil
 	if value == nil {
@@ -296,13 +306,13 @@ func (r *River) getColumnValue(column schema.TableColumn, value interface{}) (v 
 	// log.Infof("field ---->  %s %s %d %v", column.Name, column.RawType, column.Type, value)
 	switch column.Type {
 	case schema.TYPE_NUMBER, schema.TYPE_FLOAT:
-		return r.getNumberValue(value)
+		v, err = r.getNumberValue(value)
 	case schema.TYPE_SET:
-		return r.getSetValue(column, value)
+		v, err = r.getSetValue(column, value)
 	case schema.TYPE_BIT:
-		return r.getBitValue(value)
+		v, err = r.getBitValue(value)
 	case schema.TYPE_ENUM:
-		return r.getEnumValue(column, value)
+		v, err = r.getEnumValue(column, value)
 	default:
 		// the text field is MYSQL_TYPE_BLOB in the MySQL binlog, so go-mysql will use the bytes for it
 		switch column.RawType {
@@ -312,6 +322,12 @@ func (r *River) getColumnValue(column schema.TableColumn, value interface{}) (v 
 			v = "'" + value.(string) + "'"
 		}
 	}
+
+	if len(v) > 2 && strings.HasPrefix(v, "'") && strings.HasSuffix(v, "'") {
+		v = escape(v[1 : len(v)-1])
+		v = fmt.Sprintf("'%s'", v)
+	}
+
 	return
 }
 
