@@ -67,6 +67,7 @@ func (h *eventHandler) OnXID(nextPos mysql.Position) error {
 }
 
 func (h *eventHandler) OnRow(e *canal.RowsEvent) error {
+	log.Infof("I get row event %s", e.String())
 	rule, ok := h.r.rules[ruleKey(e.Table.Schema, e.Table.Name)]
 	if !ok {
 		return nil
@@ -153,13 +154,17 @@ func (r *River) syncLoop() {
 		}
 
 		if needFlush {
-			// TODO: retry some times?
-			if err := r.do(sqls); err != nil {
-				log.Errorf("do SQL bulk err %v, close sync", err)
-				r.cancel()
-				return
+			if len(sqls) > 0 {
+				// TODO: retry some times?
+				if err := r.do(sqls); err != nil {
+					log.Errorf("do SQL bulk err %v, close sync", err)
+					r.cancel()
+					return
+				}
+				sqls = sqls[0:0]
+			} else {
+				log.Info("sqls is empty no need to flush")
 			}
-			sqls = sqls[0:0]
 		}
 
 		if needSavePos {
